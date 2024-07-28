@@ -5,6 +5,8 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/1skovalchuk1/go-terminal-chat/internal/types"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -45,7 +47,7 @@ func (client *Client) reciveMessage() {
 }
 
 func (client *Client) Run() {
-	client.sendMessage([]byte(client.manager.settings.userName), newUserType)
+	client.sendMessage([]byte(client.manager.settings.userName), types.NewUserType)
 	go client.reciveMessage()
 }
 

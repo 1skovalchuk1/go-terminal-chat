@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	c "go-terminal-chat/internal/client"
 	"net/url"
 	"os"
+
+	c "github.com/1skovalchuk1/go-terminal-chat/internal/client"
 )
 
 const (

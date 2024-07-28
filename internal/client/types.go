@@ -5,14 +5,6 @@ import (
 	"github.com/rivo/tview"
 )
 
-const (
-	textMessageType = byte(1)
-	newUserType     = byte(2)
-	updateUsersType = byte(3)
-	logoutUserType  = byte(4)
-	infoType        = byte(5)
-)
-
 type Manager struct {
 	tui      *Tui
 	storage  *Storage

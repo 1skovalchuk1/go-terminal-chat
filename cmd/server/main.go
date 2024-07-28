@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	s "go-terminal-chat/internal/server"
 	"log"
 	"net/http"
+
+	s "github.com/1skovalchuk1/go-terminal-chat/internal/server"
 )
 
 func main() {

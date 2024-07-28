@@ -4,14 +4,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const (
-	textMessageType = byte(1)
-	newUserType     = byte(2)
-	updateUsersType = byte(3)
-	logoutUserType  = byte(4)
-	infoType        = byte(5)
-)
-
 type User struct {
 	userName    string
 	connection  *websocket.Conn

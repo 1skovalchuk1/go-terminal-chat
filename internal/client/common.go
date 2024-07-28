@@ -57,7 +57,6 @@ func bytesToUser(b []byte) User {
 func bytesToUsers(b []byte) []User {
 	res := []User{}
 	w := ""
-	// TODO easy to string
 	for _, i := range b {
 		if rune(i) == '\n' {
 			res = append(res, User(w))

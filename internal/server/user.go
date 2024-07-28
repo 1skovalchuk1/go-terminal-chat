@@ -2,6 +2,9 @@ package server
 
 import (
 	"fmt"
+
+	"github.com/1skovalchuk1/go-terminal-chat/internal/types"
+
 	"net/http"
 
 	"github.com/gorilla/websocket"
@@ -48,16 +51,16 @@ func (user *User) ReadMessageHandler() {
 
 		switch requestType {
 
-		case textMessageType:
+		case types.TextMessageType:
 			user.hub.messages <- byteMsg
 			continue
 
-		case newUserType:
+		case types.NewUserType:
 			user.userName = string(byteMsg)
 			user.hub.newUsers <- user
 			continue
 
-		case logoutUserType:
+		case types.LogoutUserType:
 			user.hub.logoutUsers <- user
 			continue
 		}
@@ -76,7 +79,7 @@ func (user *User) WriteMessageHandler() {
 				user.connection.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
-			user.sendMessage(textMessage, textMessageType)
+			user.sendMessage(textMessage, types.TextMessageType)
 			continue
 
 		case newUserName, ok := <-user.newUsers:
@@ -85,7 +88,7 @@ func (user *User) WriteMessageHandler() {
 				return
 			}
 
-			user.sendMessage(newUserName, newUserType)
+			user.sendMessage(newUserName, types.NewUserType)
 			continue
 
 		case logoutUserName, ok := <-user.logoutUsers:
@@ -94,7 +97,7 @@ func (user *User) WriteMessageHandler() {
 				return
 			}
 
-			user.sendMessage(logoutUserName, logoutUserType)
+			user.sendMessage(logoutUserName, types.LogoutUserType)
 			continue
 
 		case currentUsersNames, ok := <-user.updateUsers:
@@ -103,7 +106,7 @@ func (user *User) WriteMessageHandler() {
 				return
 			}
 
-			user.sendMessage(currentUsersNames, updateUsersType)
+			user.sendMessage(currentUsersNames, types.UpdateUsersType)
 			continue
 		}
 	}

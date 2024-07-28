@@ -1,4 +1,4 @@
-module go-terminal-chat
+module github.com/1skovalchuk1/go-terminal-chat
 
 go 1.22.4
 
