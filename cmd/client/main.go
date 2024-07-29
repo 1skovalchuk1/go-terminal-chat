@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"os"
 
-	c "github.com/1skovalchuk1/go-terminal-chat/internal/client"
+	c "github.com/1skovalchuk1/go-terminal-chat/client"
 )
 
 const (
@@ -20,7 +20,7 @@ func main() {
 
 	var manager c.Manager
 
-	var userName c.User
+	var userName string
 
 	fmt.Print("Enter user name: ")
 	fmt.Fscan(os.Stdin, &userName)

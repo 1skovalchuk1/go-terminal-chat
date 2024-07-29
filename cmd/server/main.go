@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	s "github.com/1skovalchuk1/go-terminal-chat/internal/server"
+	s "github.com/1skovalchuk1/go-terminal-chat/server"
 )
 
 func main() {
