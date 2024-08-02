@@ -11,16 +11,13 @@ type Manager struct {
 	settings *Settings
 }
 
-func (m Manager) Init(tui *Tui, client *Client, storage *Storage, settings *Settings) Manager {
+func (m *Manager) Init(tui *Tui, client *Client, storage *Storage, settings *Settings) Manager {
 	m.tui = tui
 	m.client = client
 	m.storage = storage
 	m.settings = settings
 
-	m.storage.addUser(User(m.settings.userName))
-	chatUsers := m.storage.users.ChatUsers()
-	m.tui.updateUsers(chatUsers)
-	return m
+	return *m
 }
 
 // TODO error to board chat
@@ -40,7 +37,7 @@ func (m *Manager) reciveMessage(b []byte) {
 		chatMessages := m.storage.messages.ChatMessages()
 		m.tui.updateBoard(chatMessages)
 		return
-	case message.UpdateUsers:
+	case message.UpdateClients:
 		users := Users{}.fromBytes(msg.DataBytes)
 		for _, user := range users {
 			m.storage.addUser(User(user))
@@ -48,18 +45,27 @@ func (m *Manager) reciveMessage(b []byte) {
 		chatUsers := m.storage.users.ChatUsers()
 		m.tui.updateUsers(chatUsers)
 		return
-	case message.LogoutUser:
+	case message.LogoutClient:
 		user := User("").fromBytes(msg.DataBytes)
 		m.storage.deleteUser(user)
+		m.storage.addMessage(message.InfoLogoutUser(string(user)))
 		chatUsers := m.storage.users.ChatUsers()
-		m.tui.updateUsers(chatUsers)
+		chatMessages := m.storage.messages.ChatMessages()
+		m.tui.updateAll(chatUsers, chatMessages)
 		return
-	case message.NewUser:
+	case message.NewClient:
 		user := User("").fromBytes(msg.DataBytes)
 		m.storage.addUser(user)
+		m.storage.addMessage(message.InfoNewUser(string(user)))
 		chatUsers := m.storage.users.ChatUsers()
-		m.tui.updateUsers(chatUsers)
+		chatMessages := m.storage.messages.ChatMessages()
+		m.tui.updateAll(chatUsers, chatMessages)
 		return
+	case message.Info:
+		// m.storage.addMessage(msg)
+		// chatMessages := m.storage.messages.ChatMessages()
+		// m.tui.updateBoard(chatMessages)
+		// return
 	}
 }
 

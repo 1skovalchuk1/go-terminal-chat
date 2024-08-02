@@ -14,8 +14,8 @@ type Tui struct {
 }
 
 func (tui Tui) Init(manager *Manager) *Tui {
-	tui.tuiApp = tview.NewApplication().EnableMouse(true)
 	tui.manager = manager
+	tui.tuiApp = tview.NewApplication().EnableMouse(true)
 	tui.board = tui.Board()
 	tui.users = tui.Users()
 	tui.inputMessage = tui.InputMessage()
@@ -25,7 +25,7 @@ func (tui Tui) Init(manager *Manager) *Tui {
 func (tui *Tui) updateBoard(messages string) {
 	go func() {
 		tui.tuiApp.QueueUpdateDraw(func() {
-			tui.board.SetText(string(messages))
+			tui.board.SetText(messages)
 			tui.board.ScrollToEnd()
 		})
 	}()
@@ -34,7 +34,17 @@ func (tui *Tui) updateBoard(messages string) {
 func (tui *Tui) updateUsers(users string) {
 	go func() {
 		tui.tuiApp.QueueUpdateDraw(func() {
-			tui.users.SetText(string(users))
+			tui.users.SetText(users)
+		})
+	}()
+}
+
+func (tui *Tui) updateAll(users string, messages string) {
+	go func() {
+		tui.tuiApp.QueueUpdateDraw(func() {
+			tui.board.SetText(messages)
+			tui.board.ScrollToEnd()
+			tui.users.SetText(users)
 		})
 	}()
 }
@@ -44,13 +54,18 @@ func (tui *Tui) clearInput() {
 }
 
 func (tui *Tui) sendeMessage(event *tcell.EventKey) *tcell.EventKey {
-	if event.Rune() == 13 { // enter '\n'
+
+	if event.Name() == "Enter" && event.Modifiers()&tcell.ModAlt == 0 {
 		text := tui.inputMessage.GetText()
 		tui.manager.sendMessage(text)
 		tui.clearInput()
 		return nil
 	}
-	if event.Rune() == 0 {
+	return event
+}
+
+func (tui *Tui) Exit(event *tcell.EventKey) *tcell.EventKey {
+	if event.Name() == "Esc" {
 		tui.manager.close()
 		return nil
 	}
@@ -58,7 +73,11 @@ func (tui *Tui) sendeMessage(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (tui *Tui) Run() {
-	if err := tui.tuiApp.SetRoot(tui.ChatWidget(), true).Run(); err != nil {
+	err := tui.tuiApp.
+		SetRoot(tui.ChatWidget(), true).
+		SetInputCapture(tui.Exit).EnableMouse(false).
+		Run()
+	if err != nil {
 		panic(err)
 	}
 }

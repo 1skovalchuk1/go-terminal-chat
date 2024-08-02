@@ -28,7 +28,7 @@ func (users Users) fromBytes(b []byte) []User {
 func (users Users) ChatUsers() string {
 	res := ""
 	for _, i := range users {
-		res += string(i) + "\n"
+		res += string("[red]"+i) + "\n"
 	}
 	return res
 }

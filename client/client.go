@@ -2,21 +2,21 @@ package client
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 
 	"github.com/1skovalchuk1/go-terminal-chat/message"
-	"github.com/gorilla/websocket"
 )
 
 type Client struct {
-	connection *websocket.Conn
+	connection net.Conn
 	manager    *Manager
 }
 
 func (client Client) Init(manager *Manager, url url.URL) *Client {
 
-	connection, _, err := websocket.DefaultDialer.Dial(url.String(), nil)
+	connection, err := net.Dial("tcp", "localhost:8080")
 
 	if err != nil {
 		fmt.Println("dial: ", err)
@@ -29,9 +29,10 @@ func (client Client) Init(manager *Manager, url url.URL) *Client {
 }
 
 func (client *Client) sendMessage(byteMsg []byte) {
-	err := client.connection.WriteMessage(websocket.TextMessage, byteMsg)
+	_, err := client.connection.Write(byteMsg)
+	println("Write")
 	if err != nil {
-		fmt.Println("write:", err)
+		fmt.Println("client write error :", err)
 		return
 	}
 
@@ -40,23 +41,40 @@ func (client *Client) sendMessage(byteMsg []byte) {
 func (client *Client) reciveMessage() {
 	defer client.connection.Close()
 	for {
-		_, message, err := client.connection.ReadMessage()
+		dataBytes := make([]byte, 1024)
+		_, err := client.connection.Read(dataBytes)
 		if err != nil {
 			fmt.Println("client read err:", err)
 			break
 		}
-		client.manager.reciveMessage(message)
+		client.manager.reciveMessage(dataBytes)
 	}
 }
 
-func (client *Client) Run() {
-	name := client.manager.settings.userName
-	msg := message.Message{}.New([]byte(name), name, message.NewUser)
+func (client *Client) Register(userName string) bool {
+	msg := message.Message{}.New([]byte(userName), userName, message.NewClient)
 	client.sendMessage(msg.ToBytes())
+	dataBytes := make([]byte, 1024)
+	_, err := client.connection.Read(dataBytes)
+	if err != nil {
+		fmt.Println("client read err:", err)
+	}
+	m := message.Message{}.FromBytes(dataBytes)
+
+	if m.TypeMsg != message.WarningExistClientName {
+		client.manager.reciveMessage(dataBytes)
+	}
+
+	return m.TypeMsg != message.WarningExistClientName
+}
+
+func (client *Client) Run() {
+
 	go client.reciveMessage()
 }
 
 func (client *Client) close() {
-	client.connection.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+	msg := message.Message{}.New([]byte{}, "", message.LogoutClient)
+	client.connection.Write(msg.ToBytes())
 	client.connection.Close()
 }
