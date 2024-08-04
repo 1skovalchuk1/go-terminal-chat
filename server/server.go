@@ -14,7 +14,7 @@ type Server struct {
 
 func (server Server) Init(network string, address string, hub *Hub) Server {
 	listener, err := net.Listen(network, address)
-	fmt.Println("Run server: ", address)
+	fmt.Println("Run server: ", listener.Addr())
 	if err != nil {
 		fmt.Println("Error TCP Server")
 	}

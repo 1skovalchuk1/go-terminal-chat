@@ -33,6 +33,7 @@ func (client *Client) handleReadMessage() {
 		dataBytes := make([]byte, 1024)
 		_, err := client.connection.Read(dataBytes)
 		if err != nil {
+			client.hub.logoutClients <- client
 			return
 		}
 		msg := message.Message{}.FromBytes(dataBytes)
@@ -48,9 +49,9 @@ func (client *Client) handleReadMessage() {
 			client.hub.newClients <- client
 			continue
 
-		case message.LogoutClient:
-			client.hub.logoutClients <- client
-			continue
+			// case message.LogoutClient:
+			// 	client.hub.logoutClients <- client
+			// 	continue
 		}
 	}
 }
@@ -59,6 +60,8 @@ func (client *Client) handleWriteMessage() {
 	defer client.connection.Close()
 
 	for textMessage := range client.send {
+		fmt.Println(client.name + ": ")
+		fmt.Println("    " + string(message.Message{}.FromBytes(textMessage).DataBytes))
 		client.sendMessage(textMessage)
 	}
 }
@@ -75,7 +78,7 @@ func (client *Client) sendMessage(message []byte) {
 	}
 }
 
-func (client *Client) closeChans() {
-	fmt.Printf("close and logout: %v\n", client.name)
+func (client *Client) closeChan() {
+	fmt.Printf("close send chan: %v\n", client.name)
 	close(client.send)
 }

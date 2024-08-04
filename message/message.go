@@ -82,21 +82,3 @@ func (messages Messages) ChatMessages() string {
 	}
 	return res
 }
-
-// ***Info***
-
-func infoMessage(message string) Message {
-	return Message{}.New(
-		[]byte(fmt.Sprint("***Info*** "+message)),
-		"",
-		Info,
-	)
-}
-
-func InfoNewUser(userName string) Message {
-	return infoMessage(fmt.Sprintf("%v connected", userName))
-
-}
-func InfoLogoutUser(userName string) Message {
-	return infoMessage(fmt.Sprintf("%v logout", userName))
-}

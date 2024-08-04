@@ -75,7 +75,7 @@ func (tui *Tui) Exit(event *tcell.EventKey) *tcell.EventKey {
 func (tui *Tui) Run() {
 	err := tui.tuiApp.
 		SetRoot(tui.ChatWidget(), true).
-		SetInputCapture(tui.Exit).EnableMouse(false).
+		SetInputCapture(tui.Exit).
 		Run()
 	if err != nil {
 		panic(err)

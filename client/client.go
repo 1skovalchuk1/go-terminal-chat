@@ -1,50 +1,52 @@
 package client
 
 import (
-	"fmt"
 	"net"
-	"net/url"
-	"os"
+	"time"
 
+	"github.com/1skovalchuk1/go-terminal-chat/loger"
 	"github.com/1skovalchuk1/go-terminal-chat/message"
 )
 
 type Client struct {
 	connection net.Conn
 	manager    *Manager
+	network    string
+	address    string
 }
 
-func (client Client) Init(manager *Manager, url url.URL) *Client {
+func (client Client) Init(manager *Manager, network string, address string) *Client {
 
-	connection, err := net.Dial("tcp", "localhost:8080")
+	connection, err := net.Dial(network, address)
 
 	if err != nil {
-		fmt.Println("dial: ", err)
-		os.Exit(1)
+		client.manager.addMessage(loger.ErrorClientConnection())
 	}
 
 	client.manager = manager
 	client.connection = connection
+	client.network = network
+	client.address = address
 	return &client
 }
 
-func (client *Client) sendMessage(byteMsg []byte) {
+func (client *Client) send(byteMsg []byte) {
 	_, err := client.connection.Write(byteMsg)
-	println("Write")
 	if err != nil {
-		fmt.Println("client write error :", err)
-		return
+		client.manager.addMessage(loger.ErrorClientWrite())
 	}
-
 }
 
 func (client *Client) reciveMessage() {
-	defer client.connection.Close()
 	for {
+		time.Sleep(time.Second * 3) /// something wrong
 		dataBytes := make([]byte, 1024)
 		_, err := client.connection.Read(dataBytes)
 		if err != nil {
-			fmt.Println("client read err:", err)
+			client.manager.addMessage(loger.ErrorClientRead())
+			client.manager.deleteUsers()
+			client.connection.Close()
+			go client.autoconnect()
 			break
 		}
 		client.manager.reciveMessage(dataBytes)
@@ -53,28 +55,40 @@ func (client *Client) reciveMessage() {
 
 func (client *Client) Register(userName string) bool {
 	msg := message.Message{}.New([]byte(userName), userName, message.NewClient)
-	client.sendMessage(msg.ToBytes())
+	client.send(msg.ToBytes())
 	dataBytes := make([]byte, 1024)
 	_, err := client.connection.Read(dataBytes)
 	if err != nil {
-		fmt.Println("client read err:", err)
+		client.manager.addMessage(loger.ErrorClientRead())
+		return false
 	}
 	m := message.Message{}.FromBytes(dataBytes)
+	isNewClientName := m.TypeMsg != message.WarningExistClientName
 
-	if m.TypeMsg != message.WarningExistClientName {
+	if isNewClientName {
 		client.manager.reciveMessage(dataBytes)
 	}
 
-	return m.TypeMsg != message.WarningExistClientName
+	return isNewClientName
 }
 
 func (client *Client) Run() {
-
 	go client.reciveMessage()
 }
 
-func (client *Client) close() {
-	msg := message.Message{}.New([]byte{}, "", message.LogoutClient)
-	client.connection.Write(msg.ToBytes())
-	client.connection.Close()
+func (client *Client) autoconnect() {
+	for {
+		time.Sleep(10 * time.Second)
+		connection, err := net.Dial(client.network, client.address)
+		if err != nil {
+			client.manager.addMessage(loger.ErrorClientConnection())
+			continue
+		}
+		client.manager.addMessage(loger.InfoConnectUser())
+		client.connection = connection
+		client.Register(client.manager.settings.userName)
+		break
+	}
+	client.Run()
+
 }

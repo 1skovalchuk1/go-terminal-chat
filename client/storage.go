@@ -20,6 +20,9 @@ func (s *Storage) addMessage(message message.Message) {
 func (s *Storage) addUser(newUser User) {
 	s.users = append(s.users, newUser)
 }
+func (s *Storage) addUsers(newUsers Users) {
+	s.users = append(s.users, newUsers...)
+}
 
 func (s *Storage) deleteUser(user User) {
 	for i := range s.users {
@@ -28,4 +31,8 @@ func (s *Storage) deleteUser(user User) {
 			break
 		}
 	}
+}
+
+func (s *Storage) deleteUsers() {
+	s.users = []User{}
 }

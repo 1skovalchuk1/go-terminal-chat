@@ -40,16 +40,13 @@ github.com/gdamore/tcell/v2/terminfo/w/wy99_ansi
 github.com/gdamore/tcell/v2/terminfo/x/xfce
 github.com/gdamore/tcell/v2/terminfo/x/xterm
 github.com/gdamore/tcell/v2/terminfo/x/xterm_kitty
-# github.com/gorilla/websocket v1.5.3
-## explicit; go 1.12
-github.com/gorilla/websocket
 # github.com/lucasb-eyer/go-colorful v1.2.0
 ## explicit; go 1.12
 github.com/lucasb-eyer/go-colorful
 # github.com/mattn/go-runewidth v0.0.16
 ## explicit; go 1.9
 github.com/mattn/go-runewidth
-# github.com/rivo/tview v0.0.0-20240625185742-b0a7293b8130
+# github.com/rivo/tview v0.0.0-20240728114935-65571ae51e71
 ## explicit; go 1.18
 github.com/rivo/tview
 # github.com/rivo/uniseg v0.4.7

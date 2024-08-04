@@ -1,3 +1,0 @@
-package error
-
-// TODO
