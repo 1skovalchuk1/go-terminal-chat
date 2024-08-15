@@ -1,14 +1,11 @@
 package client
 
 type Settings struct {
-	userName string
+	name string
 }
 
-func (s Settings) Init(userName string) *Settings {
-	s.userName = userName
-	return &s
-}
-
-func (s *Settings) SetUserName(userName string) {
-	s.userName = userName
+func NewSettings(name string) *Settings {
+	return &Settings{
+		name: name,
+	}
 }

@@ -5,34 +5,29 @@ import (
 	"net"
 )
 
-type Server struct {
-	network  string
-	address  string
-	hub      *Hub
-	listener *net.Listener
-}
-
-func (server Server) Init(network string, address string, hub *Hub) Server {
-	listener, err := net.Listen(network, address)
-	fmt.Println("Run server: ", listener.Addr())
+// Error handler
+func e(err error) {
 	if err != nil {
-		fmt.Println("Error TCP Server")
+		panic(err)
 	}
-
-	server.address = address
-	server.network = network
-	server.hub = hub
-	server.listener = &listener
-	return server
 }
 
-func (server Server) Run() {
+func Run() {
+	laddr, err := net.ResolveTCPAddr("tcp", "localhost:8080")
+	e(err)
+	listener, err := net.ListenTCP("tcp", laddr)
+	fmt.Println("Run server: ", listener.Addr())
+	e(err)
+
+	hub := newHub()
+	go hub.run()
+
 	for {
-		connection, err := (*server.listener).Accept()
-		if err != nil {
-			return
-		}
-		client := Client{}.Init(connection, server.hub)
-		go client.handleClientConnection()
+		conn, err := listener.Accept()
+		e(err)
+
+		handler := newHandler(conn, &hub)
+
+		handler.run()
 	}
 }

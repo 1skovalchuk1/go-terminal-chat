@@ -13,27 +13,19 @@ const (
 )
 
 func main() {
-
+	var name string
 	var manager c.Manager
-	var userName string
 
-	client := c.Client{}.Init(&manager, network, address)
-	storage := c.Storage{}.Init()
-	tui := c.Tui{}.Init(&manager)
-	settings := c.Settings{}.Init(userName)
-	manager.Init(tui, client, storage, settings)
+	fmt.Print("Enter user name: ")
+	fmt.Fscan(os.Stdin, &name)
+	// fmt.Println("Wait...")
 
-	for {
-		fmt.Print("Enter user name: ")
-		fmt.Fscan(os.Stdin, &userName)
-		isRegister := client.Register(userName)
-		if isRegister {
-			settings.SetUserName(userName)
-			break
-		} else {
-			fmt.Println("User name is already exist")
-		}
-	}
+	client := c.NewClient(network, address, &manager)
+	settings := c.NewSettings(name)
+	tui := c.NewTui(&manager)
+	storage := c.NewStorage()
+
+	manager = c.NewManager(client, settings, tui, storage)
 
 	go client.Run()
 	tui.Run()

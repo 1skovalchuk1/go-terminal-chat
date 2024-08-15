@@ -1,6 +1,8 @@
 package client
 
 import (
+	"time"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -13,75 +15,89 @@ type Tui struct {
 	manager      *Manager
 }
 
-func (tui Tui) Init(manager *Manager) *Tui {
-	tui.manager = manager
-	tui.tuiApp = tview.NewApplication().EnableMouse(true)
+func NewTui(manager *Manager) *Tui {
+	tui := Tui{
+		manager: manager,
+		tuiApp:  tview.NewApplication(),
+	}
 	tui.board = tui.Board()
 	tui.users = tui.Users()
 	tui.inputMessage = tui.InputMessage()
 	return &tui
 }
 
-func (tui *Tui) updateBoard(messages string) {
+func (t *Tui) updateBoard(messages string) {
+	// TODO CONST
+	time.Sleep(time.Second / 10)
+	//
 	go func() {
-		tui.tuiApp.QueueUpdateDraw(func() {
-			tui.board.SetText(messages)
-			tui.board.ScrollToEnd()
+		t.tuiApp.QueueUpdateDraw(func() {
+
+			t.board.SetText(messages)
+			t.board.ScrollToEnd()
+
 		})
 	}()
 }
 
-func (tui *Tui) updateUsers(users string) {
+func (t *Tui) updateUsers(users string) {
+	// TODO CONST
+	time.Sleep(time.Second / 10)
+	//
 	go func() {
-		tui.tuiApp.QueueUpdateDraw(func() {
-			tui.users.SetText(users)
+		t.tuiApp.QueueUpdateDraw(func() {
+
+			t.users.SetText(users)
+
 		})
 	}()
 }
 
-func (tui *Tui) updateAll(users string, messages string) {
+func (t *Tui) updateAll(users string, messages string) {
+	time.Sleep(time.Second / 10)
 	go func() {
-		tui.tuiApp.QueueUpdateDraw(func() {
-			tui.board.SetText(messages)
-			tui.board.ScrollToEnd()
-			tui.users.SetText(users)
+		t.tuiApp.QueueUpdateDraw(func() {
+			t.board.SetText(messages)
+			t.board.ScrollToEnd()
+			t.users.SetText(users)
 		})
 	}()
 }
 
-func (tui *Tui) clearInput() {
-	tui.inputMessage.SetText("", false)
+func (t *Tui) clearInput() {
+	t.inputMessage.SetText("", false)
 }
 
-func (tui *Tui) sendeMessage(event *tcell.EventKey) *tcell.EventKey {
+func (t *Tui) sendeMessage(event *tcell.EventKey) *tcell.EventKey {
 
 	if event.Name() == "Enter" && event.Modifiers()&tcell.ModAlt == 0 {
-		text := tui.inputMessage.GetText()
-		tui.manager.sendMessage(text)
-		tui.clearInput()
+		text := t.inputMessage.GetText()
+		t.manager.send(text)
+		t.clearInput()
 		return nil
 	}
 	return event
 }
 
-func (tui *Tui) Exit(event *tcell.EventKey) *tcell.EventKey {
+func (t *Tui) exit(event *tcell.EventKey) *tcell.EventKey {
 	if event.Name() == "Esc" {
-		tui.manager.close()
+		t.manager.close()
 		return nil
 	}
 	return event
 }
 
-func (tui *Tui) Run() {
-	err := tui.tuiApp.
-		SetRoot(tui.ChatWidget(), true).
-		SetInputCapture(tui.Exit).
+func (t *Tui) Run() {
+	err := t.tuiApp.
+		SetRoot(t.ChatWidget(), true).
+		EnableMouse(true).
+		SetInputCapture(t.exit).
 		Run()
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (tui *Tui) close() {
-	tui.tuiApp.Stop()
+func (t *Tui) close() {
+	t.tuiApp.Stop()
 }

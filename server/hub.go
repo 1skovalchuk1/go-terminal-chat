@@ -1,149 +1,80 @@
 package server
 
-import (
-	"fmt"
-
-	"github.com/1skovalchuk1/go-terminal-chat/message"
-)
+import "github.com/1skovalchuk1/go-terminal-chat/message"
 
 type Hub struct {
-	clients       map[*Client]bool
-	newClients    chan *Client
-	logoutClients chan *Client
-	messages      chan []byte
+	storage *Storage
+	new     chan *Handler
+	close   chan *Handler
+	msg     chan [message.MessageSize]byte
 }
 
-func (hub Hub) New() *Hub {
-	hub.clients = make(map[*Client]bool)
-	hub.newClients = make(chan *Client)
-	hub.logoutClients = make(chan *Client)
-	hub.messages = make(chan []byte)
-	return &hub
+func newHub() Hub {
+	return Hub{
+		storage: &Storage{handlers: make(map[*Handler]bool)},
+		new:     make(chan *Handler, 100),
+		close:   make(chan *Handler, 100),
+		msg:     make(chan [message.MessageSize]byte, message.MessageSize*10),
+	}
 }
 
-func (hub *Hub) Run() {
+func (h *Hub) run() {
 	for {
 		select {
-
-		case message := <-hub.messages:
-			hub.message(message)
-
-		case client := <-hub.newClients:
-			if hub.isValidUserName(client) {
-				hub.newClientToCurrentClients(client)
-				hub.clients[client] = true
-				hub.currentClientsToNewClient(client)
-			} else {
-				hub.existUserName(client)
-				fmt.Printf("exist user name: %v\n", client.name)
-			}
-
-		case user := <-hub.logoutClients:
-			user.closeChan()
-			delete(hub.clients, user)
-			hub.logoutUser(user)
-
-			fmt.Printf("send logout user %v\n", user.name)
-
+		case msg := <-h.msg:
+			h.msgToAll(msg)
+		case i := <-h.new:
+			h.newUser(i)
+		case i := <-h.close:
+			h.closeHandler(i)
 		}
 	}
 }
 
-func (hub *Hub) message(message []byte) {
-	for user := range hub.clients {
+func (h *Hub) msgToAll(b [message.MessageSize]byte) {
+	for i := range h.storage.handlers {
 		select {
-		case user.send <- message:
+		case i.send <- b:
 		default:
-			user.closeChan()
-			delete(hub.clients, user)
+			h.closeHandler(i)
 		}
 	}
-}
-func (hub *Hub) isValidUserName(newClient *Client) bool {
-	for user := range hub.clients {
-		if user.name == newClient.name {
-			return false
-		}
-	}
-	return true
 }
 
-func (hub *Hub) existUserName(newClient *Client) {
-	msg := message.Message{}.New(
-		[]byte{},
-		"",
-		message.WarningExistClientName,
-	)
+func (h *Hub) newUser(handler *Handler) {
+	h.storage.addUser(handler, h.registry)
+}
+
+func (h *Hub) registry(handler *Handler) {
+	users := handler.userName
+	b := message.NewUser(handler.userName).ToBytes()
+	for i := range h.storage.handlers {
+		select {
+		case i.send <- b:
+			users += "\n" + i.userName
+
+		default:
+			h.closeHandler(i)
+		}
+	}
+	msg := message.Users(users).ToBytes()
 	select {
-	case newClient.send <- msg.ToBytes():
+	case handler.send <- msg:
 	default:
-		newClient.closeChan()
-		delete(hub.clients, newClient)
+		h.closeHandler(handler)
 	}
 }
 
-func (hub *Hub) newClientToCurrentClients(newClient *Client) {
+func (h *Hub) closeHandler(handler *Handler) {
+	handler.close()
+	delete(h.storage.handlers, handler)
 
-	currentClientsNames := ""
-	for otherUser := range hub.clients {
-
-		currentClientsNames += otherUser.name + "\n"
-	}
-
-	fmt.Println("newClientToCurrentClients:")
-	fmt.Println("   currentClientsNames: ", currentClientsNames)
-	fmt.Println("   newClient: ", newClient.name)
-
-	for otherUser := range hub.clients {
-		msg := message.Message{}.New(
-			[]byte(newClient.name), // ???
-			newClient.name,         // ???
-			message.NewClient,
-		)
+	for i := range h.storage.handlers {
+		msg := message.LogOut(handler.userName).ToBytes()
 		select {
-		case otherUser.send <- msg.ToBytes():
+		case i.send <- msg:
 		default:
-			otherUser.closeChan()
-			delete(hub.clients, otherUser)
-		}
-	}
-}
-
-func (hub *Hub) currentClientsToNewClient(newClient *Client) {
-	currentClientsNames := ""
-	for otherUser := range hub.clients {
-
-		currentClientsNames += otherUser.name + "\n"
-	}
-	msg := message.Message{}.New(
-		[]byte(currentClientsNames),
-		newClient.name,
-		message.UpdateClients,
-	)
-	fmt.Println("currentClientsToNewClient:")
-	fmt.Println("   currentClientsNames: ", currentClientsNames)
-	fmt.Println("   newClient: ", newClient.name)
-	select {
-	case newClient.send <- msg.ToBytes():
-	default:
-		newClient.closeChan()
-		delete(hub.clients, newClient)
-	}
-}
-
-func (hub *Hub) logoutUser(logoutClient *Client) {
-
-	for user := range hub.clients {
-		msg := message.Message{}.New(
-			[]byte(logoutClient.name),
-			logoutClient.name,
-			message.LogoutClient,
-		)
-		select {
-		case user.send <- msg.ToBytes():
-		default:
-			user.closeChan()
-			delete(hub.clients, user)
+			h.closeHandler(i)
 		}
 	}
 }

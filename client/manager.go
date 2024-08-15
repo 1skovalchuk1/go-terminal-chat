@@ -1,103 +1,106 @@
 package client
 
-import (
-	"github.com/1skovalchuk1/go-terminal-chat/loger"
-	"github.com/1skovalchuk1/go-terminal-chat/message"
-)
+import "github.com/1skovalchuk1/go-terminal-chat/message"
 
 type Manager struct {
 	tui      *Tui
-	storage  *Storage
 	client   *Client
+	storage  *Storage
 	settings *Settings
 }
 
-func (m *Manager) Init(tui *Tui, client *Client, storage *Storage, settings *Settings) *Manager {
-	m.tui = tui
-	m.client = client
-	m.storage = storage
-	m.settings = settings
-
-	return m
-}
-
-func (m *Manager) reciveMessage(b []byte) {
-	msg := message.Message{}.FromBytes(b)
-
-	switch msg.TypeMsg {
-
-	case message.TextMessage:
-		m.addMessage(msg)
-		return
-	case message.UpdateClients:
-		users := Users{}.fromBytes(msg.DataBytes)
-		m.addUsers(users)
-		//
-		m.addMessage(loger.InfoNewUser("data: " + Users(users).ChatUsers()))
-		m.addMessage(loger.InfoNewUser("storage: " + Users(m.storage.users).ChatUsers()))
-		//
-		return
-	case message.LogoutClient:
-		user := User("").fromBytes(msg.DataBytes)
-		m.deleteUser(user)
-		m.addMessage(loger.InfoLogoutUser(string(user)))
-		m.updateAll()
-		return
-	case message.NewClient:
-		user := User("").fromBytes(msg.DataBytes)
-		m.addUser(user)
-		m.addMessage(loger.InfoNewUser(string(user)))
-		m.updateAll()
-		return
-	case message.Info:
-		// m.storage.addMessage(msg)
-		// chatMessages := m.storage.messages.ChatMessages()
-		// m.tui.updateBoard(chatMessages)
-		// return
+// create new Manager
+func NewManager(client *Client, settings *Settings, tui *Tui, storage *Storage) Manager {
+	return Manager{
+		client:   client,
+		settings: settings,
+		tui:      tui,
+		storage:  storage,
 	}
 }
 
-func (m *Manager) sendMessage(text string) {
-	msg := message.Message{}.New([]byte(text), m.settings.userName, message.TextMessage)
-	byteMsg := msg.ToBytes()
-	m.client.send(byteMsg)
+// send message to client
+func (m *Manager) send(text string) {
+	msg := message.New(text, m.settings.name, message.TextType)
+	b := msg.ToBytes()
+	m.client.send(b)
 }
 
+// recieve message from client
+func (m *Manager) receive(b []byte) {
+	msgs := message.ManyFromBytes(b)
+	for _, msg := range msgs {
+		m.messageHandler(msg)
+	}
+}
+
+// processes the message according to its type
+func (m *Manager) messageHandler(msg message.Message) {
+	switch msg.TypeMsg {
+	case message.TextType:
+		m.addMessage(msg)
+
+	case message.NewUserType:
+		m.addUser(msg)
+
+	case message.LogOutType:
+		m.removeUser(msg)
+
+	case message.UpdateUsersType:
+		m.addUsers(msg)
+
+	case message.LogInType:
+	case message.InfoType:
+	}
+
+}
+
+// create text message
+// func (m *Manager) message(text string) message.Message {
+// 	return message.New(text, m.name(), message.TextType)
+// }
+
+// add message to chat
 func (m *Manager) addMessage(msg message.Message) {
+	msg.SetTime()
 	m.storage.addMessage(msg)
-	chatMessages := m.storage.messages.ChatMessages()
+	chatMessages := message.ToChatMessages(m.storage.messages)
 	m.tui.updateBoard(chatMessages)
 }
 
-func (m *Manager) addUser(user User) {
+// add User to chat
+func (m *Manager) addUser(msg message.Message) {
+	user := msg.FromS()
 	m.storage.addUser(user)
-	chatUsers := m.storage.users.ChatUsers()
+	chatUsers := message.ToChatUsers(m.storage.users)
 	m.tui.updateUsers(chatUsers)
 }
 
-func (m *Manager) updateAll() {
-	chatUsers := m.storage.users.ChatUsers()
-	chatMessages := m.storage.messages.ChatMessages()
-	m.tui.updateAll(chatUsers, chatMessages)
-}
-
-func (m *Manager) addUsers(users Users) {
+// add Users to chat
+func (m *Manager) addUsers(msg message.Message) {
+	users := msg.BodyS()
 	m.storage.addUsers(users)
-	chatUsers := users.ChatUsers()
+	chatUsers := message.ToChatUsers(m.storage.users)
 	m.tui.updateUsers(chatUsers)
 }
 
-func (m *Manager) deleteUser(user User) {
-	m.storage.deleteUser(user)
-}
-
-func (m *Manager) deleteUsers() {
-	m.storage.deleteUsers()
-	chatUsers := m.storage.users.ChatUsers()
+// remove User from chat
+func (m *Manager) removeUser(msg message.Message) {
+	user := msg.FromS()
+	m.storage.removeUser(user)
+	chatUsers := message.ToChatUsers(m.storage.users)
 	m.tui.updateUsers(chatUsers)
 }
 
+// close chat
 func (m *Manager) close() {
-	m.client.connection.Close()
+	m.client.conn.Close()
 	m.tui.close()
+}
+
+// Getters
+
+// get User name
+func (m *Manager) name() string {
+	return m.settings.name
 }

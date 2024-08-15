@@ -1,84 +1,214 @@
 package message
 
 import (
-	"bytes"
-	"encoding/gob"
 	"fmt"
-	"log"
 	"time"
 )
 
-// Message types
 const (
-	TextMessage            = byte(1)
-	NewClient              = byte(2)
-	UpdateClients          = byte(3)
-	LogoutClient           = byte(4)
-	Info                   = byte(5)
-	WarningExistClientName = byte(6)
+	TextType                = byte(1)
+	NewUserType             = byte(2)
+	UpdateUsersType         = byte(3)
+	LogOutType              = byte(4)
+	LogInType               = byte(5)
+	InfoType                = byte(6)
+	WarningExistHandlerName = byte(7)
+)
+
+const (
+	MessageTypeSize = 1
+	MessageTimeSize = 8
+	MessageFromSize = 128
+	MessageBodySize = 1024
+	MessageSize     = MessageTypeSize + MessageTimeSize + MessageFromSize + MessageBodySize
 )
 
 type Message struct {
-	TypeMsg    byte
-	FromClient string
-	Time       string
-	DataBytes  []byte
+	TypeMsg byte
+	Time    [MessageTimeSize]byte
+	From    [MessageFromSize]byte
+	Body    [MessageBodySize]byte
 }
 
-type Messages []Message
+func New(body string, from string, typeMsg byte) Message {
 
-func (message *Message) Split() ([]byte, byte) {
-	return message.DataBytes, message.TypeMsg
-}
+	bodyBytes := [MessageBodySize]byte{}
+	fromBytes := [MessageFromSize]byte{}
 
-func (message Message) New(dataBytes []byte, fromClient string, typeMsg byte) Message {
-	h, m, s := time.Now().Clock()
-	receiptTime := fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+	copy(bodyBytes[:], body)
+	copy(fromBytes[:], from)
 
-	message.Time = receiptTime
-	message.DataBytes = dataBytes
-	message.TypeMsg = typeMsg
-	message.FromClient = fromClient
-	return message
-}
+	// TODO check if string not too big
 
-func (message *Message) ToBytes() []byte {
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(message)
-	if err != nil {
-		log.Fatal("message encode error:", err)
+	return Message{
+		TypeMsg: typeMsg,
+		From:    fromBytes,
+		Body:    bodyBytes,
 	}
-	return buf.Bytes()
 }
 
-func (message Message) FromBytes(b []byte) Message {
-	buf := *bytes.NewBuffer(b)
-	dec := gob.NewDecoder(&buf)
-	err := dec.Decode(&message)
-	if err != nil {
-		log.Fatal("message decode error:", err)
-	}
-	return message
+// parse  message to bytes
+func (m Message) ToBytes() [MessageSize]byte {
+	res := [MessageSize]byte{m.TypeMsg}
+	s := res[:]
+	s = append(s[:MessageTypeSize], m.Time[:]...)
+	s = append(s[:MessageTypeSize+MessageTimeSize], m.From[:]...)
+	_ = append(s[:MessageSize-MessageBodySize], m.Body[:]...)
+
+	return res
 }
 
-func (message *Message) chatMessage() string {
+// parse bytes to message
+func OneFromBytes(b [MessageSize]byte) Message {
+	m := Message{}
 
-	if message.TypeMsg == Info {
-		return "[yellow]" + string(message.Time) +
-			"  [gray]" + string(message.DataBytes)
+	m.TypeMsg = b[0]
+	copy(m.Time[:], b[MessageTypeSize:MessageTypeSize+MessageTimeSize])
+	copy(m.From[:], b[MessageTypeSize+MessageTimeSize:MessageSize-MessageBodySize])
+	copy(m.Body[:], b[MessageSize-MessageBodySize:])
+
+	return m
+}
+
+// parse bytes to slice of messages
+func ManyFromBytes(bs []byte) []Message {
+	byteMsg := [MessageSize]byte{}
+	res := []Message{}
+	if bs[0] == 0 {
+		return res
 	}
-	return "[yellow]" + string(message.Time) +
-		"  [red]" + string(message.FromClient) +
+	for i, b := range bs {
+		k := i % MessageSize
+		if k == 0 && i != 0 {
+			if b == 0 {
+				break
+			}
+			byteMsg[k] = b
+			msg := OneFromBytes(byteMsg)
+			res = append(res, msg)
+			byteMsg = [MessageSize]byte{}
+		}
+		byteMsg[k] = b
+	}
+	msg := OneFromBytes(byteMsg)
+	res = append(res, msg)
+
+	return res
+}
+
+// set time in message
+func (m *Message) SetTime() {
+	h, min, s := time.Now().Clock()
+	t := fmt.Sprintf("%02d:%02d:%02d", h, min, s)
+	copy(m.Time[:], t)
+}
+
+// *********** Messages ************
+
+// create message new user
+func NewUser(name string) Message {
+	return New("", name, NewUserType)
+}
+
+// create message current users
+func Users(users string) Message {
+	return New(users, "", UpdateUsersType)
+}
+
+// create message logout user
+func LogOut(name string) Message {
+	return New("", name, LogOutType)
+}
+
+// ********* Info Messages *********
+
+// create message info wrapper
+func infoWrapper(msg string) Message {
+	return New(
+		"***Info*** "+msg,
+		"",
+		InfoType,
+	)
+}
+
+// create message when new user add to chat
+func InfoNewUser(userName string) Message {
+	m := userName + " connected"
+	return infoWrapper(m)
+}
+
+// create message when user logout from chat
+func InfoLogoutUser(userName string) Message {
+	m := userName + " disconnected"
+	return infoWrapper(m)
+}
+
+// ************ Getters ************
+
+// get message Time field as a string
+func (m Message) TimeS() string {
+	return byteToStr(m.Time[:])
+}
+
+// get message Body field as a string
+func (m Message) BodyS() string {
+	return byteToStr(m.Body[:])
+}
+
+// get message From field as a string
+func (m Message) FromS() string {
+	return byteToStr(m.From[:])
+}
+
+// ******** Parsers to chat ********
+
+// parse one message to chat
+func (m Message) ToChatMessage() string {
+
+	if m.TypeMsg == InfoType {
+		return "[yellow]" + m.TimeS() +
+			"  [gray]" + m.BodyS()
+	}
+	return "[yellow]" + m.TimeS() +
+		"  [red]" + m.FromS() +
 		"[white]" +
-		"\n          " + string(message.DataBytes)
+		"\n          " + m.BodyS()
 }
 
-func (messages Messages) ChatMessages() string {
+// parse messages to chat
+func ToChatMessages(ms []Message) string {
 	res := ""
-	for _, msg := range messages {
-		textMsg := msg.chatMessage()
+	for _, i := range ms {
+		textMsg := i.ToChatMessage()
 		res += textMsg + "\n"
 	}
 	return res
+}
+
+// parse user to chat
+func ToChatUser(user string) string {
+	return "[red]" + user + "\n"
+}
+
+// parse users to chat
+func ToChatUsers(users []string) string {
+	res := ""
+	for _, i := range users {
+		res += ToChatUser(i)
+	}
+	return res
+}
+
+// *********************************
+
+func byteToStr(b []byte) string {
+	res := []byte{}
+	for _, i := range b {
+		if i == 0 {
+			break
+		}
+		res = append(res, i)
+	}
+	return string(res)
+
 }
